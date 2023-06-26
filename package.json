@@ -1,0 +1,23 @@
+{
+  "name": "polytone-keepalive",
+  "version": "1.0.0",
+  "scripts": {
+    "keepalive": "vite-node keepalive.ts"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.43.0",
+    "@typescript-eslint/parser": "^5.43.0",
+    "commander": "^11.0.0",
+    "eslint": "^8.27.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "prettier": "^2.7.1",
+    "toml": "^3.0.0",
+    "typescript": "^4.8.4",
+    "vite-node": "^0.32.2"
+  },
+  "dependencies": {
+    "@cosmjs/stargate": "^0.31.0",
+    "chain-registry": "^1.14.0"
+  }
+}

@@ -1,0 +1,18 @@
+mnemonic = ""
+
+[[chains]]
+name = "juno"
+rpc = "https://juno-rpc.reece.sh"
+notify_balance_threshold = 1000000
+
+[[chains]]
+name = "junotestnet"
+rpc = "https://uni-rpc.reece.sh"
+notify_balance_threshold = 1000000
+
+[[connections]]
+chain_a = "juno"
+client_a = "07-tendermint-XXX"
+
+chain_b = "junotestnet"
+client_b = "07-tendermint-XXX"
