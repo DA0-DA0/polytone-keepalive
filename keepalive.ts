@@ -35,7 +35,7 @@ type Config = {
 }
 
 const spawnPromise = (cmd: string, args: string[]) =>
-  new Promise((resolve, reject) => {
+  new Promise<string>((resolve, reject) => {
     try {
       const runCommand = spawn(cmd, args)
 
@@ -229,8 +229,13 @@ const main = async () => {
         '--client',
         a.client,
       ])
-      console.log(outputA)
 
+      // If unsuccessful, throw output as error.
+      if (!outputA.includes('SUCCESS')) {
+        throw new Error(outputA)
+      }
+
+      console.log(outputA)
       updatedSuccessfully++
     } catch (err) {
       console.error('ERROR:', err instanceof Error ? err.message : err)
@@ -258,8 +263,13 @@ const main = async () => {
         '--client',
         b.client,
       ])
-      console.log(outputB)
 
+      // If unsuccessful, throw output as error.
+      if (!outputB.includes('SUCCESS')) {
+        throw new Error(outputB)
+      }
+
+      console.log(outputB)
       updatedSuccessfully++
     } catch (err) {
       console.error('ERROR:', err instanceof Error ? err.message : err)
