@@ -83,7 +83,7 @@ const main = async () => {
 
     await webhookClient.send({
       content:
-        config.discord.notify_user_ids.length > 0
+        type === 'error' && config.discord.notify_user_ids.length > 0
           ? `<@!${config.discord.notify_user_ids.join('>, <@!')}>`
           : undefined,
       embeds: [embed],
