@@ -201,9 +201,9 @@ const main = async () => {
         await sendDiscordNotification(
           'error',
           'Low Balance',
-          `\`${
-            chain.chain_name
-          }\` balance is \`${balance.toLocaleString()}${denom}\`\nsend funds to \`${address}\``
+          `Chain: \`${
+            chain.pretty_name
+          }\`\nAddress: \`${address}\`\nBalance: \`${balance.toLocaleString()}${denom}\``
         )
       }
       console.log()
