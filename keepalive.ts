@@ -5,9 +5,14 @@ import toml from 'toml'
 import fs from 'fs'
 import chainRegistry from 'chain-registry'
 import { StargateClient } from '@cosmjs/stargate'
+import { EmbedBuilder, WebhookClient } from 'discord.js'
 
 type Config = {
   mnemonic: string
+  discord: {
+    webhook_url: string
+    notify_user_ids: string[]
+  }
   chains?: {
     // Name in chain-registry
     name: string
@@ -61,6 +66,29 @@ const main = async () => {
   const { config: configFile } = program.opts()
 
   const config: Config = toml.parse(fs.readFileSync(configFile, 'utf-8'))
+
+  const webhookClient = new WebhookClient({
+    url: config.discord.webhook_url,
+  })
+  const sendDiscordNotification = async (
+    type: 'success' | 'error',
+    title: string,
+    description: string | null = null
+  ) => {
+    const embed = new EmbedBuilder()
+      .setColor(type === 'success' ? '#00ff00' : '#ff0000')
+      .setTitle(title)
+      .setDescription(description)
+      .setTimestamp()
+
+    await webhookClient.send({
+      content:
+        config.discord.notify_user_ids.length > 0
+          ? `<@!${config.discord.notify_user_ids.join('>, <@!')}>`
+          : undefined,
+      embeds: [embed],
+    })
+  }
 
   const connections = await Promise.all(
     config.connections.map(async ({ chain_a, client_a, chain_b, client_b }) => {
@@ -168,6 +196,15 @@ const main = async () => {
         console.log(
           `--- WARNING: balance is below ${notifyBalanceThreshold}${denom}`
         )
+
+        // Notify via Discord
+        await sendDiscordNotification(
+          'error',
+          'Low Balance',
+          `\`${
+            chain.chain_name
+          }\` balance is \`${balance.toLocaleString()}${denom}\`\nsend funds to \`${address}\``
+        )
       }
       console.log()
     },
@@ -175,6 +212,7 @@ const main = async () => {
   )
 
   // Update clients...
+  let updatedSuccessfully = 0
   await connections.reduce(async (prev, { a, b }) => {
     await prev
 
@@ -192,14 +230,25 @@ const main = async () => {
         a.client,
       ])
       console.log(outputA)
+
+      updatedSuccessfully++
     } catch (err) {
       console.error('ERROR:', err instanceof Error ? err.message : err)
+
+      // Notify via Discord
+      await sendDiscordNotification(
+        'error',
+        `${a.chain.pretty_name} :arrow_right: ${b.chain.pretty_name} update failure`,
+        `Chain ID: \`${a.chain.chain_id}\`\nIBC Client ID: \`${
+          a.client
+        }\`\n\`\`\`${err instanceof Error ? err.message : err}\`\`\``
+      )
     }
 
     // Update client B
     try {
       console.log(
-        `----- updating ${b.chain.chain_name}=>${a.chain.chain_name} client ${b.client}...`
+        `----- updating ${b.chain.chain_name} => ${a.chain.chain_name} client ${b.client}...`
       )
       const outputB = await spawnPromise('hermes', [
         'update',
@@ -210,10 +259,31 @@ const main = async () => {
         b.client,
       ])
       console.log(outputB)
+
+      updatedSuccessfully++
     } catch (err) {
       console.error('ERROR:', err instanceof Error ? err.message : err)
+
+      // Notify via Discord
+      await sendDiscordNotification(
+        'error',
+        `${b.chain.pretty_name} :arrow_right: ${a.chain.pretty_name} update failure`,
+        `Chain ID: \`${b.chain.chain_id}\`\nIBC Client ID: \`${
+          b.client
+        }\`\n\`\`\`${err instanceof Error ? err.message : err}\`\`\``
+      )
     }
   }, Promise.resolve())
+
+  // Notify via Discord
+  if (updatedSuccessfully > 0) {
+    await sendDiscordNotification(
+      'success',
+      `${updatedSuccessfully}/${
+        connections.length * 2
+      } clients updated successfully`
+    )
+  }
 }
 
 main().catch(console.error)

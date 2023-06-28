@@ -33,7 +33,13 @@ connection between two chains.
    list of chains in
    [chains.ts](https://github.com/cosmology-tech/chain-registry/blob/main/packages/chain-registry/src/chains.ts).
 
-4. Run the script:
+4. Create a Discord webhook by following this guide:
+
+   https://discordjs.guide/popular-topics/webhooks.html#creating-webhooks
+
+   Then, add the webhook URL to `config.toml`.
+
+5. Run the script:
 
    ```sh
    npm run keepalive

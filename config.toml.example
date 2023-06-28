@@ -1,5 +1,12 @@
 mnemonic = ""
 
+[discord]
+webhook_url = ""
+notify_user_ids = [
+  "",
+  ""
+]
+
 [[chains]]
 name = "juno"
 rpc = "https://juno-rpc.reece.sh"
