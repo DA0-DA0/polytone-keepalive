@@ -13,10 +13,11 @@ them alive to prevent needing to restart them via governance proposals. If it
 fails to do so for any reason, it will send a notification to a Discord channel
 for troubleshooting.
 
-[SETUP.md](./SETUP.md) contains instructions for setting up a Polytone
-connection between two chains.
-
 ## Usage
+
+This expects Polytone connections to already exist. Follow [this
+guide](https://github.com/DA0-DA0/polytone/wiki/How-to-set-up-a-new-polytone-connection)
+to do so.
 
 1. Install [Hermes](https://hermes.informal.systems) and configure it.
 
@@ -33,6 +34,25 @@ connection between two chains.
    list of chains in
    [chains.ts](https://github.com/cosmology-tech/chain-registry/blob/main/packages/chain-registry/src/chains.ts).
 
+   ```toml
+   [[chains]]
+   name = "<CHAIN A NAME>"
+   rpc = "<CHAIN A RPC>"
+   notify_balance_threshold = 1000000
+
+   [[chains]]
+   name = "<CHAIN B NAME>"
+   rpc = "<CHAIN B RPC>"
+   notify_balance_threshold = 1000000
+
+   [[connections]]
+   chain_a = "<CHAIN A NAME>"
+   client_a = "<CHAIN A IBC CLIENT>"
+
+   chain_b = "<CHAIN B NAME>"
+   client_b = "<CHAIN B IBC CLIENT>"
+   ```
+
 4. Create a Discord webhook by following this guide:
 
    https://discordjs.guide/popular-topics/webhooks.html#creating-webhooks
@@ -43,4 +63,11 @@ connection between two chains.
 
    ```sh
    npm run keepalive
+   ```
+
+   Set up a cron job to run this script periodically. For example, to run it
+   every 3 days:
+
+   ```sh
+   0 0 */3 * * cd /path/to/polytone-keepalive && npm run keepalive
    ```
