@@ -2,7 +2,9 @@
 
 This is a guide to setting up a Polytone connection between two chains.
 
-1. Set up Hermes for new chain by adding chain to config.toml
+1. Set up
+   [Hermes](https://hermes.informal.systems/tutorials/production/setup-hermes.html)
+   for new chain by adding chain to config.toml
 
 ```toml
 [[chains]]
