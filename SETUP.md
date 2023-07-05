@@ -113,6 +113,27 @@ echo "voice: $VOICE_CONTRACT"
 
 6. Create channel between contracts
 
+Ideally, find an existing highly-used connection between the chains. For
+example, between Juno and Osmosis, there is a primary transfer channel used for
+exchanging tokens. Because these channels are very active, their clients are
+unlikely to expire, and if they expire, many people will be motivated to
+reactivate them via governance. Thus, we can use the same connection these
+channels use for our new channel pair.
+
+```bash
+CONNECTION=
+
+SRC_CHAIN_ID=
+SRC_NOTE_CONTRACT=
+
+DEST_CHAIN_ID=
+DEST_VOICE_CONTRACT=
+
+hermes create channel --a-chain $SRC_CHAIN_ID --a-connection $CONNECTION --a-port wasm.$SRC_NOTE_CONTRACT --b-port wasm.$DEST_VOICE_CONTRACT --channel-version polytone-1
+```
+
+OR in the event that we have to create a new connection:
+
 ```bash
 SRC_CHAIN_ID=
 SRC_NOTE_CONTRACT=
@@ -123,7 +144,7 @@ DEST_VOICE_CONTRACT=
 hermes create channel --a-chain $SRC_CHAIN_ID --b-chain $DEST_CHAIN_ID --a-port wasm.$SRC_NOTE_CONTRACT --b-port wasm.$DEST_VOICE_CONTRACT --new-client-connection --channel-version polytone-1
 ```
 
-7. Add any new chains and new connection to keepalive config
+6a. and then add it to the keepalive script config to prevent it from expiring:
 
 ```toml
 [[chains]]
@@ -143,3 +164,7 @@ client_a = "<CHAIN A IBC CLIENT>"
 chain_b = "<CHAIN B NAME>"
 client_b = "<CHAIN B IBC CLIENT>"
 ```
+
+This is optional, but highly recommended for inactive channels to prevent light
+client expiration. Using existing connections is preferred for this reason and
+likely does not require the use of the keepalive script.
