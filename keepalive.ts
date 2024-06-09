@@ -6,6 +6,7 @@ import fs from 'fs'
 import chainRegistry from 'chain-registry'
 import { StargateClient } from '@cosmjs/stargate'
 import { EmbedBuilder, WebhookClient } from 'discord.js'
+import process from 'process'
 
 type Config = {
   mnemonic: string
@@ -64,6 +65,7 @@ const main = async () => {
   program.option('-c, --config <config>', 'config file', 'config.toml')
   program.parse()
   const { config: configFile } = program.opts()
+  const args = process.argv.slice(2);
 
   const config: Config = toml.parse(fs.readFileSync(configFile, 'utf-8'))
 
@@ -201,8 +203,7 @@ const main = async () => {
         await sendDiscordNotification(
           'error',
           'Low Balance',
-          `Chain: \`${
-            chain.pretty_name
+          `Chain: \`${chain.pretty_name
           }\`\nAddress: \`${address}\`\nBalance: \`${balance.toLocaleString()}${denom}\``
         )
       }
@@ -217,71 +218,82 @@ const main = async () => {
     await prev
 
     // Update client A
-    try {
-      console.log(
-        `----- updating ${a.chain.chain_name}=>${b.chain.chain_name} client ${a.client}...`
-      )
-      const outputA = await spawnPromise('hermes', [
-        'update',
-        'client',
-        '--host-chain',
-        a.chain.chain_id,
-        '--client',
-        a.client,
+    if (args.includes('--hermes')) {
+      try {
+        console.log(
+          `----- updating ${a.chain.chain_name}=>${b.chain.chain_name} client ${a.client}...`
+        )
+        const outputA = await spawnPromise('hermes', [
+          'update',
+          'client',
+          '--host-chain',
+          a.chain.chain_id,
+          '--client',
+          a.client,
+        ])
+
+        // If unsuccessful, throw output as error.
+        if (!outputA.includes('SUCCESS')) {
+          throw new Error(outputA)
+        }
+
+        console.log(outputA)
+        updatedSuccessfully++
+      } catch (err) {
+        console.error('ERROR:', err instanceof Error ? err.message : err)
+
+        // Notify via Discord
+        await sendDiscordNotification(
+          'error',
+          `${a.chain.pretty_name} :arrow_right: ${b.chain.pretty_name} update failure`,
+          `Chain ID: \`${a.chain.chain_id}\`\nIBC Client ID: \`${a.client
+          }\`\n\`\`\`${err instanceof Error ? err.message : err}\`\`\``
+        )
+      }
+
+      // Update client B
+      try {
+        console.log(
+          `----- updating ${b.chain.chain_name} => ${a.chain.chain_name} client ${b.client}...`
+        )
+        const outputB = await spawnPromise('hermes', [
+          'update',
+          'client',
+          '--host-chain',
+          b.chain.chain_id,
+          '--client',
+          b.client,
+        ])
+
+        // If unsuccessful, throw output as error.
+        if (!outputB.includes('SUCCESS')) {
+          throw new Error(outputB)
+        }
+
+        console.log(outputB)
+        updatedSuccessfully++
+      } catch (err) {
+        console.error('ERROR:', err instanceof Error ? err.message : err)
+
+        // Notify via Discord
+        await sendDiscordNotification(
+          'error',
+          `${b.chain.pretty_name} :arrow_right: ${a.chain.pretty_name} update failure`,
+          `Chain ID: \`${b.chain.chain_id}\`\nIBC Client ID: \`${b.client
+          }\`\n\`\`\`${err instanceof Error ? err.message : err}\`\`\``
+        )
+      }
+    } else {
+      const outputA = await spawnPromise('rly', [
+        'tx',
+        'update-clients',
+        `${a.chain.chain_name}-${b.chain.chain_name}`,
       ])
 
       // If unsuccessful, throw output as error.
       if (!outputA.includes('SUCCESS')) {
         throw new Error(outputA)
       }
-
-      console.log(outputA)
-      updatedSuccessfully++
-    } catch (err) {
-      console.error('ERROR:', err instanceof Error ? err.message : err)
-
-      // Notify via Discord
-      await sendDiscordNotification(
-        'error',
-        `${a.chain.pretty_name} :arrow_right: ${b.chain.pretty_name} update failure`,
-        `Chain ID: \`${a.chain.chain_id}\`\nIBC Client ID: \`${
-          a.client
-        }\`\n\`\`\`${err instanceof Error ? err.message : err}\`\`\``
-      )
-    }
-
-    // Update client B
-    try {
-      console.log(
-        `----- updating ${b.chain.chain_name} => ${a.chain.chain_name} client ${b.client}...`
-      )
-      const outputB = await spawnPromise('hermes', [
-        'update',
-        'client',
-        '--host-chain',
-        b.chain.chain_id,
-        '--client',
-        b.client,
-      ])
-
-      // If unsuccessful, throw output as error.
-      if (!outputB.includes('SUCCESS')) {
-        throw new Error(outputB)
-      }
-
-      console.log(outputB)
-      updatedSuccessfully++
-    } catch (err) {
-      console.error('ERROR:', err instanceof Error ? err.message : err)
-
-      // Notify via Discord
-      await sendDiscordNotification(
-        'error',
-        `${b.chain.pretty_name} :arrow_right: ${a.chain.pretty_name} update failure`,
-        `Chain ID: \`${b.chain.chain_id}\`\nIBC Client ID: \`${
-          b.client
-        }\`\n\`\`\`${err instanceof Error ? err.message : err}\`\`\``
-      )
     }
   }, Promise.resolve())
 
@@ -289,8 +301,7 @@ const main = async () => {
   if (updatedSuccessfully > 0) {
     await sendDiscordNotification(
       'success',
-      `${updatedSuccessfully}/${
-        connections.length * 2
+      `${updatedSuccessfully}/${connections.length * 2
       } clients updated successfully`
     )
   }
