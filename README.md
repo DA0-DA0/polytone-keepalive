@@ -19,7 +19,8 @@ This expects Polytone connections to already exist. Follow [this
 guide](https://github.com/DA0-DA0/polytone/wiki/How-to-set-up-a-new-polytone-connection)
 to do so.
 
-1. Install [Hermes](https://hermes.informal.systems) and configure it.
+
+1. Install [Hermes](https://hermes.informal.systems), or [go-rly](https://github.com/cosmos/relayer) and configure it.
 
 2. Install the dependencies:
 
@@ -62,12 +63,18 @@ to do so.
 5. Run the script:
 
    ```sh
+   ## with ibc-go 
    npm run keepalive
+   ## with hermes 
+   npm run keepalive-hermes
    ```
 
    Set up a cron job to run this script periodically. For example, to run it
    every 3 days:
 
    ```sh
+   ## to run with ibc-go 
    0 0 */3 * * cd /path/to/polytone-keepalive && npm run keepalive
+   ## with hermes
+   0 0 */3 * * cd /path/to/polytone-keepalive && npm run keepalive-hermes
    ```
