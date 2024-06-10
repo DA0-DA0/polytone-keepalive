@@ -63,15 +63,18 @@ to do so.
 5. Run the script:
 
    ```sh
-   ## to run with ibc-go 
+   ## with ibc-go 
    npm run keepalive
-   ## to run with hermes 
-   npm run keepalive --hermes 
+   ## with hermes 
+   npm run keepalive-hermes
    ```
 
    Set up a cron job to run this script periodically. For example, to run it
    every 3 days:
 
    ```sh
+   ## to run with ibc-go 
    0 0 */3 * * cd /path/to/polytone-keepalive && npm run keepalive
+   ## with hermes
+   0 0 */3 * * cd /path/to/polytone-keepalive && npm run keepalive-hermes
    ```

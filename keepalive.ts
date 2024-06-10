@@ -284,15 +284,27 @@ const main = async () => {
         )
       }
     } else {
-      const outputA = await spawnPromise('rly', [
-        'tx',
-        'update-clients',
-        `${a.chain.chain_name}-${b.chain.chain_name}`,
-      ])
+      try {
+        const outputA = await spawnPromise('rly', [
+          'tx',
+          'update-clients',
+          `${a.chain.chain_name}-${b.chain.chain_name}`,
+        ])
 
-      // If unsuccessful, throw output as error.
-      if (!outputA.includes('SUCCESS')) {
-        throw new Error(outputA)
+        // If unsuccessful, throw output as error.
+        if (!outputA.includes('SUCCESS')) {
+          throw new Error(outputA)
+        }
+      } catch (err) {
+        console.error('ERROR:', err instanceof Error ? err.message : err)
+
+        // Notify via Discord
+        await sendDiscordNotification(
+          'error',
+          `${b.chain.pretty_name} :arrow_right: ${a.chain.pretty_name} update failure`,
+          `Chain ID: \`${b.chain.chain_id}\`\nIBC Client ID: \`${b.client
+          }\`\n\`\`\`${err instanceof Error ? err.message : err}\`\`\``
+        )
       }
     }
   }, Promise.resolve())
