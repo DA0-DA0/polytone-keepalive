@@ -2,8 +2,8 @@
   "name": "polytone-keepalive",
   "version": "1.0.0",
   "scripts": {
-    "keepalive": "vite-node keepalive.ts",
-    "deploy": "./scripts/deploy.sh"
+    "keepalive:hermes": "vite-node keepalive-hermes.ts",
+    "keepalive:rly": "vite-node keepalive-rly.ts"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.43.0",

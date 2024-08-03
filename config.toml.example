@@ -1,4 +1,7 @@
+# only needed for hermes
 mnemonic = ""
+
+# needed for both hermes and rly
 
 [discord]
 webhook_url = ""
@@ -6,6 +9,8 @@ notify_user_ids = [
   "",
   ""
 ]
+
+# everything else only needed for hermes
 
 [[chains]]
 name = "juno"

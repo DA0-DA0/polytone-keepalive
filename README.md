@@ -1,8 +1,9 @@
 # polytone-keepalive
 
-This is a script to keep [Polytone](https://github.com/DA0-DA0/polytone)'s IBC
-light clients alive using the open-source IBC relayer
-[Hermes](https://hermes.informal.systems).
+This is a script to help keep IBC light clients alive using the open-source IBC
+relayer [Hermes](https://hermes.informal.systems) or
+[rly](https://github.com/cosmos/relayer). It was made for
+[Polytone](https://github.com/DA0-DA0/polytone) but works with any IBC clients.
 
 See the IBC-Go docs on [light client
 pauses](https://ibc.cosmos.network/main/ibc/proposals.html). Essentially, if a
@@ -13,13 +14,18 @@ them alive to prevent needing to restart them via governance proposals. If it
 fails to do so for any reason, it will send a notification to a Discord channel
 for troubleshooting.
 
+There are two scripts. The more manual one is `keepalive` which depends on
+Hermes. The other one is `keepalive-rly` which uses rly and automatically
+detects configured addresses and paths to use.
+
 ## Usage
 
 This expects Polytone connections to already exist. Follow [this
 guide](https://github.com/DA0-DA0/polytone/wiki/How-to-set-up-a-new-polytone-connection)
-to do so.
+to open a new one.
 
-1. Install [Hermes](https://hermes.informal.systems) and configure it.
+1. Install [Hermes](https://hermes.informal.systems) or
+   [rly](https://github.com/cosmos/relayer) and configure it.
 
 2. Install the dependencies:
 
@@ -27,14 +33,19 @@ to do so.
    npm install
    ```
 
-3. Create `config.toml` from `config.toml.example` and fill in the values,
-   configuring the same chains as in your Hermes config as well as the polytone
-   client connections to keep alive. Chain names must match known chain names
-   from the [Chain Registry](https://github.com/cosmology-tech/chain-registry)'s
-   list of chains in
+3. Create `config.toml` from `config.toml.example` and fill in the necessary
+   values.
+
+   For Hermes, configure the mnemonic, and the same chains as in your relayer
+   config as well as the polytone client connections to keep alive. Chain names
+   must match known chain names from the [Chain
+   Registry](https://github.com/cosmology-tech/chain-registry)'s list of chains
+   in
    [chains.ts](https://github.com/cosmology-tech/chain-registry/blob/main/packages/chain-registry/src/chains.ts).
 
    ```toml
+   mnemonic = ""
+
    [[chains]]
    name = "<CHAIN A NAME>"
    rpc = "<CHAIN A RPC>"
@@ -53,6 +64,8 @@ to do so.
    client_b = "<CHAIN B IBC CLIENT>"
    ```
 
+   For rly, you only need to configure the discord notification webhook.
+
 4. Create a Discord webhook by following this guide:
 
    https://discordjs.guide/popular-topics/webhooks.html#creating-webhooks
@@ -62,12 +75,14 @@ to do so.
 5. Run the script:
 
    ```sh
-   npm run keepalive
+   npm run keepalive:hermes
+   # OR
+   npm run keepalive:rly
    ```
 
-   Set up a cron job to run this script periodically. For example, to run it
-   every 3 days:
+   Set up a cron job to run this script periodically. For example, to run the
+   rly script every 3 days:
 
    ```sh
-   0 0 */3 * * cd /path/to/polytone-keepalive && npm run keepalive
+   0 0 */3 * * cd /path/to/polytone-keepalive && npm run keepalive:rly
    ```

@@ -221,6 +221,7 @@ const main = async () => {
       console.log(
         `----- updating ${a.chain.chain_name}=>${b.chain.chain_name} client ${a.client}...`
       )
+
       const outputA = await spawnPromise('hermes', [
         'update',
         'client',
@@ -236,6 +237,7 @@ const main = async () => {
       }
 
       console.log(outputA)
+
       updatedSuccessfully++
     } catch (err) {
       console.error('ERROR:', err instanceof Error ? err.message : err)
@@ -255,6 +257,7 @@ const main = async () => {
       console.log(
         `----- updating ${b.chain.chain_name} => ${a.chain.chain_name} client ${b.client}...`
       )
+
       const outputB = await spawnPromise('hermes', [
         'update',
         'client',
