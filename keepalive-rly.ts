@@ -111,9 +111,9 @@ const main = async () => {
       }
 
       // ensure balance is at least 100 million times larger than gas price
-      const ratio =
-        Number(microBalance) / gasPrice.amount.toFloatApproximation()
-      if (ratio < 100_000_000) {
+      const minMicroBalance =
+        gasPrice.amount.toFloatApproximation() * 100_000_000
+      if (Number(microBalance) < minMicroBalance) {
         console.log(
           `--- WARNING: low balance of ${microBalance}${denom} in ${address} on ${chainName}`
         )
@@ -122,7 +122,9 @@ const main = async () => {
         await sendDiscordNotification(
           'error',
           'Low Balance',
-          `Chain: \`${chainName}\`\nAddress: \`${address}\`\nBalance: \`${microBalance.toLocaleString()}${denom}\``
+          `Chain: \`${chainName}\`\nAddress: \`${address}\`\nBalance: \`${Number(
+            microBalance
+          ).toLocaleString()}${denom}\`\nWanted: \`${minMicroBalance.toLocaleString()}\``
         )
       } else {
         console.log(
