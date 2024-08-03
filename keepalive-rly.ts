@@ -146,8 +146,72 @@ const main = async () => {
   }
 
   // update paths
-
   for (const path of paths) {
+    // check expiration
+    let expired = false
+    try {
+      const [src, dst]: {
+        HEALTH: 'GOOD' | string
+        'LAST UPDATE HEIGHT': string
+        TIME: string
+        'TRUSTING PERIOD': string
+        'UNBONDING PERIOD': string
+        client: string
+      }[] = (
+        await spawnPromise('rly', [
+          'query',
+          'clients-expiration',
+          path,
+          '--output',
+          'json',
+        ])
+      )[1]
+        .split('\n').filter(Boolean)
+        .map((line) => JSON.parse(line))
+
+      if (!src || !dst) {
+        throw new Error('failed to parse clients expiration')
+      }
+
+      if (src.HEALTH === 'GOOD' && dst.HEALTH === 'GOOD') {
+        console.log(`--- GOOD: clients for ${path} are ok`)
+      } else {
+        expired = true
+
+        const statuses = [
+          ...(src.HEALTH === 'GOOD' ? [] : [`${src.client}: ${src.HEALTH}`]),
+          ...(dst.HEALTH === 'GOOD' ? [] : [`${dst.client}: ${dst.HEALTH}`]),
+        ]
+        console.log(
+          `--- EXPIRED: client(s) for ${path} are unhealthy:\n----- ${statuses.join('\n----- ')}`
+        )
+
+        // Notify via Discord
+        await sendDiscordNotification(
+          'error',
+          'Client Expiration',
+          `Path: \`${path}\`\nStatuses:\n\`${statuses.join('\n')}\``
+        )
+      }
+    } catch (err) {
+      console.error(err)
+
+      const error = err instanceof Error ? err.message : `${err}`
+
+      // Notify via Discord
+      await sendDiscordNotification(
+        'error',
+        'Check Client Expiration Failure',
+        `Path: \`${path}\`\n\n${
+          error.length > 1024 ? 'Error too long. Check logs.' : error
+        }`
+      )
+    }
+
+    if (expired) {
+      continue
+    }
+
     try {
       const output: (
         | {
@@ -166,11 +230,8 @@ const main = async () => {
         ])
       )[1]
         .split('\n')
-        .flatMap((line) => {
-          if (!line) {
-            return []
-          }
-
+        .filter(Boolean)
+        .map((line) => {
           try {
             return JSON.parse(line)
           } catch {
