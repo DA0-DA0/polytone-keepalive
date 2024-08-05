@@ -62,7 +62,7 @@ const main = async () => {
   })
 
   const start = new Date()
-  const initialMessage = `### Running at ${start.toLocaleString()}...`
+  const initialMessage = `### Running at ${start.toISOString()}...`
   const webhookMessages = [
     await webhookClient.send({
       content: initialMessage,
@@ -194,7 +194,7 @@ const main = async () => {
         )
       }
     } catch (err) {
-      console.error(err)
+      console.error(chainName, err)
 
       const error = err instanceof Error ? err.message : `${err}`
 
@@ -202,7 +202,9 @@ const main = async () => {
       await sendDiscordNotification(
         EntryType.LowBalanceFailure,
         `[${chainName}] ${
-          error.length > 1024 ? 'Error too long. Check logs.' : `\`${error}\``
+          error.length > 1024
+            ? 'Error too long. Check logs.'
+            : `\`${error.replace(/\n+/g, ' ').trim()}\``
         }`
       )
     }
@@ -213,6 +215,18 @@ const main = async () => {
     // check expiration
     let expired = false
     try {
+      const [code, res] = await spawnPromise('rly', [
+        'query',
+        'clients-expiration',
+        path,
+        '--output',
+        'json',
+      ])
+
+      if (code !== 0) {
+        throw new Error(res)
+      }
+
       const [src, dst]: {
         HEALTH: 'GOOD' | string
         'LAST UPDATE HEIGHT': string
@@ -220,20 +234,18 @@ const main = async () => {
         'TRUSTING PERIOD': string
         'UNBONDING PERIOD': string
         client: string
-      }[] = (
-        await spawnPromise('rly', [
-          'query',
-          'clients-expiration',
-          path,
-          '--output',
-          'json',
-        ])
-      )[1]
+      }[] = res
         .split('\n')
         .filter(Boolean)
-        .map((line) => JSON.parse(line))
+        .map((line) => {
+          try {
+            return JSON.parse(line)
+          } catch {
+            return line
+          }
+        })
 
-      if (!src || !dst) {
+      if (!src || typeof src !== 'object' || !dst || typeof dst !== 'object') {
         throw new Error('failed to parse clients expiration')
       }
 
@@ -260,7 +272,7 @@ const main = async () => {
         )
       }
     } catch (err) {
-      console.error(err)
+      console.error(path, err)
 
       const error = err instanceof Error ? err.message : `${err}`
 
@@ -268,7 +280,9 @@ const main = async () => {
       await sendDiscordNotification(
         EntryType.ExpirationFailure,
         `[${path}] ${
-          error.length > 1024 ? 'Error too long. Check logs.' : `\`${error}\``
+          error.length > 1024
+            ? 'Error too long. Check logs.'
+            : `\`${error.replace(/\n+/g, ' ').trim()}\``
         }`
       )
     }
@@ -303,6 +317,7 @@ const main = async () => {
             return line
           }
         })
+
       const lastLine = output[output.length - 1]
 
       // if last line is success, successful. otherwise, notify on error
@@ -324,7 +339,7 @@ const main = async () => {
         )
       }
     } catch (err) {
-      console.error(err)
+      console.error(path, err)
 
       const error = err instanceof Error ? err.message : `${err}`
 
@@ -332,7 +347,9 @@ const main = async () => {
       await sendDiscordNotification(
         EntryType.UpdateFailure,
         `[${path}] ${
-          error.length > 1024 ? 'Error too long. Check logs.' : `\`${error}\``
+          error.length > 1024
+            ? 'Error too long. Check logs.'
+            : `\`${error.replace(/\n+/g, ' ').trim()}\``
         }`
       )
     }
@@ -341,7 +358,7 @@ const main = async () => {
   await webhookClient.editMessage(webhookMessages[0].id, {
     content: webhookMessages[0].content.replace(
       initialMessage,
-      `### Ran at ${start.toLocaleString()}`
+      `### Ran at ${start.toISOString()}`
     ),
   })
 
