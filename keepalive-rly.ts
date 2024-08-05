@@ -12,6 +12,22 @@ type Config = {
   }
 }
 
+enum EntryType {
+  LowBalance = 'low_balance',
+  LowBalanceFailure = 'low_balance_failure',
+  Expiration = 'expiration',
+  ExpirationFailure = 'expiration_failure',
+  UpdateFailure = 'update_failure',
+}
+
+const entryTitle: Record<EntryType, string> = {
+  [EntryType.LowBalance]: 'Low Balance',
+  [EntryType.LowBalanceFailure]: 'Balance Check Failure',
+  [EntryType.Expiration]: 'Client Expiration',
+  [EntryType.ExpirationFailure]: 'Client Expiration Check Failure',
+  [EntryType.UpdateFailure]: 'Update Clients Failure',
+}
+
 const spawnPromise = (cmd: string, args: string[]) =>
   new Promise<[number, string]>((resolve, reject) => {
     try {
@@ -44,24 +60,71 @@ const main = async () => {
   const webhookClient = new WebhookClient({
     url: config.discord.webhook_url,
   })
-  const sendDiscordNotification = async (
-    type: 'success' | 'error',
-    title: string,
-    description: string | null = null
-  ) => {
-    const embed = new EmbedBuilder()
-      .setColor(type === 'success' ? '#00ff00' : '#ff0000')
-      .setTitle(title)
-      .setDescription(description)
-      .setTimestamp()
 
+  const start = new Date()
+  const initialMessage = `### Running at ${start.toLocaleString()}...`
+  const webhookMessages = [
     await webhookClient.send({
-      content:
-        type === 'error' && config.discord.notify_user_ids.length > 0
-          ? `<@!${config.discord.notify_user_ids.join('>, <@!')}>`
-          : undefined,
-      embeds: [embed],
-    })
+      content: initialMessage,
+    }),
+  ]
+
+  const entries: Partial<Record<EntryType, string[]>> = {}
+  const sendDiscordNotification = async (type: EntryType, entry: string) => {
+    let content = initialMessage
+
+    // Make sure users are tagged.
+    if (config.discord.notify_user_ids.length > 0 && !content.includes('<@!')) {
+      content += `\n<@!${config.discord.notify_user_ids.join('>, <@!')}>`
+    }
+
+    entries[type] ||= []
+    entries[type].push(entry.trim())
+
+    const sections = Object.entries(entries).map(
+      ([type, lines]) =>
+        `### ${entryTitle[type as EntryType]}:\n${lines
+          .map((line) => `- ${line}`)
+          .join('\n')}`
+    )
+
+    content += `\n${sections.join('\n')}`
+
+    // Split content into parts of up to 2000 characters each (max content in
+    // one Discord message), split at the newline before the limit is hit.
+    const parts = content.split('\n').reduce((parts, part) => {
+      if (parts.length === 0) {
+        return [part]
+      } else if (parts[parts.length - 1].length + part.length > 2000) {
+        // start a new part if this part added to the previous part would
+        // surpass the 2000 character limit
+        parts.push(part)
+      } else {
+        // if it would not surpass the limit, add the part to the most recent
+        // part, inserting the newline back
+        parts[parts.length - 1] += `\n${part}`
+      }
+
+      return parts
+    }, [] as string[])
+
+    // edit existing messages with parts or create new ones as needed
+    for (let i = 0; i < parts.length; i++) {
+      if (i < webhookMessages.length) {
+        webhookMessages[i] = await webhookClient.editMessage(
+          webhookMessages[i].id,
+          {
+            content: parts[i],
+          }
+        )
+      } else {
+        webhookMessages.push(
+          await webhookClient.send({
+            content: parts[i],
+          })
+        )
+      }
+    }
   }
 
   const chains = Object.entries(
@@ -115,16 +178,15 @@ const main = async () => {
         gasPrice.amount.toFloatApproximation() * 100_000_000
       if (Number(microBalance) < minMicroBalance) {
         console.log(
-          `--- WARNING: low balance of ${microBalance}${denom} in ${address} on ${chainName}`
+          `--- ERROR: low balance of ${microBalance}${denom} in ${address} on ${chainName}`
         )
 
         // Notify via Discord
         await sendDiscordNotification(
-          'error',
-          'Low Balance',
-          `Chain: \`${chainName}\`\nAddress: \`${address}\`\nBalance: \`${Number(
+          EntryType.LowBalance,
+          `${Number(
             microBalance
-          ).toLocaleString()}${denom}\`\nWanted: \`${minMicroBalance.toLocaleString()}\``
+          ).toLocaleString()}${denom} < ${minMicroBalance.toLocaleString()}${denom} @ \`${address}\` (${chainName})`
         )
       } else {
         console.log(
@@ -134,13 +196,14 @@ const main = async () => {
     } catch (err) {
       console.error(err)
 
+      const error = err instanceof Error ? err.message : `${err}`
+
       // Notify via Discord
       await sendDiscordNotification(
-        'error',
-        'Balance Check Failure',
-        `Chain: \`${chainName}\`\n\n\`${
-          err instanceof Error ? err.message : err
-        }\``
+        EntryType.LowBalanceFailure,
+        `[${chainName}] ${
+          error.length > 1024 ? 'Error too long. Check logs.' : `\`${error}\``
+        }`
       )
     }
   }
@@ -166,7 +229,8 @@ const main = async () => {
           'json',
         ])
       )[1]
-        .split('\n').filter(Boolean)
+        .split('\n')
+        .filter(Boolean)
         .map((line) => JSON.parse(line))
 
       if (!src || !dst) {
@@ -183,14 +247,16 @@ const main = async () => {
           ...(dst.HEALTH === 'GOOD' ? [] : [`${dst.client}: ${dst.HEALTH}`]),
         ]
         console.log(
-          `--- EXPIRED: client(s) for ${path} are unhealthy:\n----- ${statuses.join('\n----- ')}`
+          `--- ERROR: client(s) for ${path} are unhealthy:\n----- ${statuses.join(
+            '\n----- '
+          )}`
         )
 
         // Notify via Discord
-        await sendDiscordNotification(
-          'error',
-          'Client Expiration',
-          `Path: \`${path}\`\nStatuses:\n\`${statuses.join('\n')}\``
+        await Promise.all(
+          statuses.map((status) =>
+            sendDiscordNotification(EntryType.Expiration, `[${path}] ${status}`)
+          )
         )
       }
     } catch (err) {
@@ -200,10 +266,9 @@ const main = async () => {
 
       // Notify via Discord
       await sendDiscordNotification(
-        'error',
-        'Check Client Expiration Failure',
-        `Path: \`${path}\`\n\n${
-          error.length > 1024 ? 'Error too long. Check logs.' : error
+        EntryType.ExpirationFailure,
+        `[${path}] ${
+          error.length > 1024 ? 'Error too long. Check logs.' : `\`${error}\``
         }`
       )
     }
@@ -265,14 +330,26 @@ const main = async () => {
 
       // Notify via Discord
       await sendDiscordNotification(
-        'error',
-        'Update Clients Failure',
-        `Path: \`${path}\`\n\n${
-          error.length > 1024 ? 'Error too long. Check logs.' : error
+        EntryType.UpdateFailure,
+        `[${path}] ${
+          error.length > 1024 ? 'Error too long. Check logs.' : `\`${error}\``
         }`
       )
     }
   }
+
+  await webhookClient.editMessage(webhookMessages[0].id, {
+    content: webhookMessages[0].content.replace(
+      initialMessage,
+      `### Ran at ${start.toLocaleString()}`
+    ),
+  })
+
+  await webhookClient.send({
+    content: `_Finished in ${Number(
+      ((Date.now() - start.getTime()) / 1000 / 60).toFixed(2)
+    ).toLocaleString()} minutes._`,
+  })
 }
 
 main().catch(console.error)
