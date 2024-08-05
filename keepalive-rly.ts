@@ -17,13 +17,15 @@ enum EntryType {
   LowBalanceFailure = 'low_balance_failure',
   Expiration = 'expiration',
   ExpirationFailure = 'expiration_failure',
+  Update = 'update',
   UpdateFailure = 'update_failure',
 }
 
-const entryTitle: Record<EntryType, string> = {
+const entryTitles: Record<EntryType, string> = {
   [EntryType.LowBalance]: 'Low Balance',
+  [EntryType.Expiration]: 'Clients Expired',
+  [EntryType.Update]: 'Clients Updated',
   [EntryType.LowBalanceFailure]: 'Balance Check Failure',
-  [EntryType.Expiration]: 'Client Expiration',
   [EntryType.ExpirationFailure]: 'Client Expiration Check Failure',
   [EntryType.UpdateFailure]: 'Update Clients Failure',
 }
@@ -81,11 +83,13 @@ const main = async () => {
     entries[type] ||= []
     entries[type].push(entry.trim())
 
-    const sections = Object.entries(entries).map(
-      ([type, lines]) =>
-        `### ${entryTitle[type as EntryType]}:\n${lines
-          .map((line) => `- ${line}`)
-          .join('\n')}`
+    // match order of titles
+    const sections = Object.entries(entryTitles).flatMap(([type, title]) =>
+      entries[type as EntryType]?.length
+        ? `### ${title}:\n${entries[type as EntryType]!.map(
+            (line) => `- ${line}`
+          ).join('\n')}`
+        : []
     )
 
     content += `\n${sections.join('\n')}`
@@ -213,7 +217,8 @@ const main = async () => {
   // update paths
   for (const path of paths) {
     // check expiration
-    let expired = false
+    let needsUpdate = false
+
     try {
       const [code, res] = await spawnPromise('rly', [
         'query',
@@ -250,24 +255,37 @@ const main = async () => {
       }
 
       if (src.HEALTH === 'GOOD' && dst.HEALTH === 'GOOD') {
-        console.log(`--- GOOD: clients for ${path} are ok`)
-      } else {
-        expired = true
+        // update if either client is within 5 days of expiry
+        const srcExpiration = new Date(src['TIME'].split(' (')[0])
+        const dstExpiration = new Date(dst['TIME'].split(' (')[0])
+        needsUpdate =
+          // use whichever expiration is sooner
+          Math.min(srcExpiration.getTime(), dstExpiration.getTime()) -
+            Date.now() <
+          5 * 24 * 60 * 60 * 1000
 
-        const statuses = [
-          ...(src.HEALTH === 'GOOD' ? [] : [`${src.client}: ${src.HEALTH}`]),
-          ...(dst.HEALTH === 'GOOD' ? [] : [`${dst.client}: ${dst.HEALTH}`]),
+        console.log(
+          `--- GOOD: clients for ${path} are not expired ${
+            needsUpdate
+              ? "but expire in < 5 days, so let's try to update them"
+              : 'and do not need to be updated'
+          }`
+        )
+      } else {
+        const expiredClients = [
+          ...(src.HEALTH === 'GOOD' ? [] : [src.client]),
+          ...(dst.HEALTH === 'GOOD' ? [] : [dst.client]),
         ]
         console.log(
-          `--- ERROR: client(s) for ${path} are unhealthy:\n----- ${statuses.join(
-            '\n----- '
-          )}`
+          `--- ERROR: client(s) for ${path} are expired:\n${expiredClients
+            .map((s) => `----- ${s}`)
+            .join('\n')}`
         )
 
         // Notify via Discord
         await Promise.all(
-          statuses.map((status) =>
-            sendDiscordNotification(EntryType.Expiration, `[${path}] ${status}`)
+          expiredClients.map((client) =>
+            sendDiscordNotification(EntryType.Expiration, `[${path}] ${client}`)
           )
         )
       }
@@ -287,7 +305,7 @@ const main = async () => {
       )
     }
 
-    if (expired) {
+    if (!needsUpdate) {
       continue
     }
 
@@ -327,6 +345,9 @@ const main = async () => {
         lastLine.msg === 'Clients updated'
       ) {
         console.log(`--- GOOD: updated clients for ${path}`)
+
+        // Notify via Discord
+        await sendDiscordNotification(EntryType.Update, path)
       } else {
         console.log(`--- ERROR: failed to update clients for path ${path}`)
 
