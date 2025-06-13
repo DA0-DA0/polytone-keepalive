@@ -2,4 +2,7 @@ node_modules/
 
 config.toml
 
+config.yaml
+.keys/
+
 scripts/

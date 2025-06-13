@@ -86,3 +86,57 @@ to open a new one.
    ```sh
    0 0 */3 * * cd /path/to/polytone-keepalive && npm run keepalive:rly
    ```
+
+## Docker
+
+The Docker image for this project is based on the
+[rly-docker](https://github.com/NoahSaso/rly-docker) Docker image, which sets up
+the [Cosmos Relayer](https://github.com/cosmos/relayer) in a container.
+
+This needs the `rly` relayer configured since `keepalive-rly.ts` uses it
+directly.
+
+### Usage
+
+1. **Run**:
+
+   ```bash
+   docker compose up
+   ```
+
+2. **Check Logs**:
+
+   ```bash
+   docker compose logs -f relayer
+   ```
+
+### Configuration
+
+The relayer is configured through files and environment variables, and the
+keepalive script is configured through `config.toml`.
+
+#### Config
+
+Mount your relayer's `config.yaml` at
+`/home/relayer/.relayer/config/config.yaml` with chains and paths already
+configured.
+
+Mount the keepalive script's `config.toml` at `/home/relayer/config.toml`.
+
+#### Keys
+
+Set the `KEY_DIR` environment variable to a directory containing chain key
+mnemonic files. This defaults to `/home/relayer/.keys`.
+
+The file names should match the chain names in the config.yaml (no extension),
+and the contents should just be the mnemonic.
+
+#### Environment Variables
+
+You can configure environment variables to change behavior, but the defaults
+should work for most cases.
+
+| Variable          | Default                 | Description                                       |
+| ----------------- | ----------------------- | ------------------------------------------------- |
+| `KEY_DIR`         | `"/home/relayer/.keys"` | Directory with chain key mnemonic files           |
+| `KEY_NAME`        | `"relayer_key"`         | Key name to use for all chains                    |

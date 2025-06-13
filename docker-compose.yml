@@ -1,0 +1,25 @@
+services:
+  polytone-keepalive:
+    build: .
+    container_name: polytone-keepalive
+    restart: unless-stopped
+    volumes:
+      - .keys:/home/relayer/.keys
+      - ./config.yaml:/home/relayer/.relayer/config/config.yaml
+      - ./config.toml:/home/relayer/config.toml
+    environment:
+      # Key directory
+      KEY_DIR: "/home/relayer/.keys"
+
+      # Key name to use for all chains
+      KEY_NAME: "relayer_key"
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+        reservations:
+          memory: 512M
+          cpus: "0.25"
