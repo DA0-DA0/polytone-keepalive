@@ -6,6 +6,7 @@
     "keepalive:rly": "vite-node keepalive-rly.ts"
   },
   "devDependencies": {
+    "@types/node": "^24.0.1",
     "@typescript-eslint/eslint-plugin": "^5.43.0",
     "@typescript-eslint/parser": "^5.43.0",
     "commander": "^11.0.0",

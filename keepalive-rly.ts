@@ -3,7 +3,7 @@ import { spawn } from 'child_process'
 import toml from 'toml'
 import fs from 'fs'
 import { GasPrice } from '@cosmjs/stargate'
-import { EmbedBuilder, WebhookClient } from 'discord.js'
+import { WebhookClient } from 'discord.js'
 
 type Config = {
   discord: {
@@ -28,6 +28,42 @@ const entryTitles: Record<EntryType, string> = {
   [EntryType.LowBalanceFailure]: 'Balance Check Failure',
   [EntryType.ExpirationFailure]: 'Client Expiration Check Failure',
   [EntryType.UpdateFailure]: 'Update Clients Failure',
+}
+
+/**
+ * Replace any values in the object that are set to `env:KEY` with the value of
+ * the environment variable `KEY`, throwing an error if the environment variable
+ * is empty. Use `envOptional:KEY` instead to allow empty
+ *
+ * Recursively replaces values in nested objects.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const replaceEnvVars = (obj: any) => {
+  Object.entries(obj).forEach(([key, value]) => {
+    if (!value) {
+      return
+    }
+
+    if (typeof value === 'string') {
+      if (value.startsWith('env:')) {
+        const envKey = value.slice('env:'.length)
+        const envValue = process.env[envKey]
+        if (envValue) {
+          obj[key] = envValue
+        } else {
+          throw new Error(
+            `Environment variable ${envKey} required by config but not set.`
+          )
+        }
+      } else if (value.startsWith('envOptional:')) {
+        const envKey = value.slice('envOptional:'.length)
+        const envValue = process.env[envKey]
+        obj[key] = envValue
+      }
+    } else if (typeof value === 'object') {
+      replaceEnvVars(value)
+    }
+  })
 }
 
 const spawnPromise = (cmd: string, args: string[]) =>
@@ -58,6 +94,7 @@ const main = async () => {
   const { config: configFile } = program.opts()
 
   const config: Config = toml.parse(fs.readFileSync(configFile, 'utf-8'))
+  replaceEnvVars(config)
 
   const webhookClient = new WebhookClient({
     url: config.discord.webhook_url,
