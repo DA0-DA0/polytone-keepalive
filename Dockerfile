@@ -13,7 +13,7 @@ RUN npm ci
 COPY keepalive-rly.ts ./
 
 # Stage 2: Final image with rly-docker base
-FROM ghcr.io/noahsaso/rly-docker:2.6.0
+FROM ghcr.io/noahsaso/rly-docker:latest
 
 # Copy Node.js binary from the alpine node image
 COPY --from=node-builder /usr/local/bin/node /bin/node
