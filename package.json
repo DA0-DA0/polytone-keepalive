@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@cosmjs/stargate": "^0.34.0",
-    "chain-registry": "^1.14.0",
+    "chain-registry": "^1.69.282",
     "discord.js": "^14.11.0"
   }
 }
