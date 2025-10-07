@@ -292,20 +292,24 @@ const main = async () => {
       }
 
       if (src.HEALTH === 'GOOD' && dst.HEALTH === 'GOOD') {
-        // update if either client is within 5 days of expiry
-        const srcExpiration = new Date(src['TIME'].split(' (')[0])
-        const dstExpiration = new Date(dst['TIME'].split(' (')[0])
-        needsUpdate =
-          // use whichever expiration is sooner
-          Math.min(srcExpiration.getTime(), dstExpiration.getTime()) -
-            Date.now() <
-          5 * 24 * 60 * 60 * 1000
+        // // update if either client is within 5 days of expiry
+        // const srcExpiration = new Date(src['TIME'].split(' (')[0])
+        // const dstExpiration = new Date(dst['TIME'].split(' (')[0])
+        // needsUpdate =
+        //   // use whichever expiration is sooner
+        //   Math.min(srcExpiration.getTime(), dstExpiration.getTime()) -
+        //     Date.now() <
+        //   5 * 24 * 60 * 60 * 1000
+
+        // Update every time.
+        needsUpdate = true
 
         console.log(
           `--- GOOD: clients for ${path} are not expired ${
             needsUpdate
-              ? "but expire in < 5 days, so let's try to update them"
-              : 'and do not need to be updated'
+              ? "so let's try to update them"
+              : // ? "but expire in < 5 days, so let's try to update them"
+                'and do not need to be updated'
           }`
         )
       } else {
